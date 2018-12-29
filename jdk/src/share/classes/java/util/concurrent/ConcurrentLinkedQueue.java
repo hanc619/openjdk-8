@@ -186,6 +186,9 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
          * only be seen after publication via casNext.
          */
         Node(E item) {
+            /**
+             * 将Node对象的指定itemOffSet 偏移量设置 一个引用值
+             */
             UNSAFE.putObject(this, itemOffset, item);
         }
 
@@ -232,6 +235,8 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      * - head.item may or may not be null.
      * - it is permitted for tail to lag behind head, that is, for tail
      *   to not be reachable from head!
+     *
+     *   初始化的时候head为是一个item和next都是为null的对象
      */
     private transient volatile Node<E> head;
 
@@ -246,6 +251,8 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      * - it is permitted for tail to lag behind head, that is, for tail
      *   to not be reachable from head!
      * - tail.next may or may not be self-pointing to tail.
+     *
+     *  初始化的时候tail为是一个item和next都是为null的对象
      */
     private transient volatile Node<E> tail;
 
@@ -300,9 +307,13 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
     /**
      * Tries to CAS head to p. If successful, repoint old head to itself
      * as sentinel for succ(), below.
+     *
+     * 将节点p设置为新的节点, 之后将原节点的next指向自己
      */
     final void updateHead(Node<E> h, Node<E> p) {
+        //将p设置为新的节点
         if (h != p && casHead(h, p))
+            //原节点的next指向自己 (为queue节点删除和gc做准备)
             h.lazySetNext(h);
     }
 
@@ -313,12 +324,16 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      */
     final Node<E> succ(Node<E> p) {
         Node<E> next = p.next;
+        //当tail指向一个哨兵结点(node.next = node) 哨兵结点是 updateHead 方法导致的
+        //如果是哨兵节点就返回头结点
         return (p == next) ? head : next;
     }
 
     /**
      * Inserts the specified element at the tail of this queue.
      * As the queue is unbounded, this method will never return {@code false}.
+     *
+     * 入队的本质就是在队尾插入一个元素
      *
      * @return {@code true} (as specified by {@link Queue#offer})
      * @throws NullPointerException if the specified element is null
@@ -327,10 +342,14 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
         checkNotNull(e);
         final Node<E> newNode = new Node<E>(e);
 
+        //初始化变量 p = t= tail
         for (Node<E> t = tail, p = t;;) {
+            //获取p的next
             Node<E> q = p.next;
+            //如果p的next q是null 则说明p是last node
             if (q == null) {
                 // p is last node
+                // 对 p 进行 cas 操作, p.next -> newNode
                 if (p.casNext(null, newNode)) {
                     // Successful CAS is the linearization point
                     // for e to become an element of this queue,

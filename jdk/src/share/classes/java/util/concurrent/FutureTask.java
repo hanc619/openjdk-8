@@ -423,6 +423,7 @@ public class FutureTask<V> implements RunnableFuture<V> {
                     removeWaiter(q);
                     return state;
                 }
+                //阻塞当前线程，最长等待时间不超过nanos毫秒
                 LockSupport.parkNanos(this, nanos);
             }
             else
